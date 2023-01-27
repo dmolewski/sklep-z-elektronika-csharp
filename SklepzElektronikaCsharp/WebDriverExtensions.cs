@@ -7,7 +7,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 
-namespace SKlepzElekronikaCsharp
+namespace SeleniumTests
 {
     //https://www.plukasiewicz.net/Artykuly/Metody_rozszerzajace
     public static class WebDriverExtensions

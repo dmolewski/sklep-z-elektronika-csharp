@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 
-namespace SKlepzElekronikaCsharp
+namespace SeleniumTests
 {
     [AllureNUnit]
     class CartTests
