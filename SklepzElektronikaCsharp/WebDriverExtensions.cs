@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 
 namespace SeleniumTests
 {
-    //https://www.plukasiewicz.net/Artykuly/Metody_rozszerzajace
     public static class WebDriverExtensions
     {
         public static IWebElement FindElement(this ISearchContext context, By by, int timeoutInSeconds)

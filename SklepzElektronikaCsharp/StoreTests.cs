@@ -1,7 +1,9 @@
 using Allure.Commons;
 using NLog;
+using NUnit.Allure.Attributes;
 using NUnit.Allure.Core;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
@@ -14,12 +16,14 @@ using System.Text.RegularExpressions;
 namespace SeleniumTests
 {
     [AllureNUnit]
-    class CartTests
+    class StoreTests
 
     {
         private static readonly ILogger log = LogManager.GetCurrentClassLogger();
 
         IWebDriver driver;
+        private WebDriverWait wait;
+
 
         IJavaScriptExecutor js;
 
@@ -79,18 +83,28 @@ namespace SeleniumTests
         private static readonly Random random = new Random();
         public static int randomNumber = random.Next(1, 101);
 
-        [SetUp]
+        [OneTimeSetUp]
         public void Setup()
         {
             driver = new ChromeDriver();
             driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10);
+            driver.Manage().Window.Maximize();
+            wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
             js = (IJavaScriptExecutor)driver;
             driver.Navigate().GoToUrl(storeURL);
-            DismissNoticeLink.Click();
         }
 
         [TearDown]
+        public void ClearCache()
+        {
+            if (driver != null)
+            {
+                driver.Manage().Cookies.DeleteAllCookies();
+            }
+        }
+
+        [OneTimeTearDown]
         public void QuitDriver()
         {
             if (TestContext.CurrentContext.Result.Outcome != ResultState.Success)
@@ -108,10 +122,8 @@ namespace SeleniumTests
 
         private void SwitchToFrame(By frameLocator)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.FrameToBeAvailableAndSwitchToIt(frameLocator));
-            Wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+            wait.Until(ExpectedConditions.FrameToBeAvailableAndSwitchToIt(frameLocator));
+            wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
         }
 
         private void SlowType(IWebElement element, string text)
@@ -147,7 +159,7 @@ namespace SeleniumTests
             ClickAndWait(By.CssSelector("li[id='menu-item-19']"));
             ClickAndWait(By.CssSelector(selector));
             string subpageContent = driver.FindElement(By.CssSelector("div[class='woocommerce-MyAccount-content']>p")).Text;
-            log.Info($"Znaleziony tekst: \"{subpageContent}\", oczekiwany: \"{expectedText}\"");
+            Console.WriteLine($"Znaleziony tekst: \"{subpageContent}\", oczekiwany: \"{expectedText}\"");
             string errorMessage = string.Format("Strona nie zawiera spodziewanego fragmentu tekstu. Spodziewany fragment: \"%s\", znaleziony tekst: \"%s\"", expectedText, subpageContent);
             Assert.IsTrue(subpageContent.Contains(expectedText), errorMessage);
         }
@@ -212,83 +224,69 @@ namespace SeleniumTests
             string productName = driver.FindElement(By.CssSelector(".product_title.entry-title")).Text;
 
             Assert.IsTrue(WaitForMessage().Contains("„" + productName + "” zosta³ dodany do koszyka."), "Produkt „" + productName + "” nie zosta³ dodany do koszyka");
-            log.Info("Dodano nowy produkt do koszyka: „" + productName + "”");
+            Console.WriteLine("Dodano nowy produkt do koszyka: „" + productName + "”");
         }
 
         private string WaitForMessage()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
-            var messageElements = Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".woocommerce-message")));
+            wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+            var messageElements = wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".woocommerce-message")));
             var messages = messageElements.Select(e => e.Text);
             return string.Join(Environment.NewLine, messages);
-            //return Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".woocommerce-message"))).Text;
+            //return wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".woocommerce-message"))).Text;
         }
 
         private string WaitForErrorMessage()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             By errorList = By.CssSelector("ul.woocommerce-error");
-            Wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
-            return Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(errorList))[0].Text;
+            wait.Until(d => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+            return wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(errorList))[0].Text;
         }
 
         private double AddProductPrice()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             string productPriceText = driver.FindElement(By.CssSelector("div.summary.entry-summary bdi:nth-child(1)")).Text;
             double productPrice = double.Parse(Regex.Replace(productPriceText, @"[^0-9.,]+", "").Replace(",", "."), CultureInfo.InvariantCulture);
-            Wait.Until(ExpectedConditions.ElementExists(By.CssSelector("div#content p.woocommerce-mini-cart__total.total bdi:nth-child(1)")));
+            wait.Until(ExpectedConditions.ElementExists(By.CssSelector("div#content p.woocommerce-mini-cart__total.total bdi:nth-child(1)")));
             return productPrice;
         }
 
         private void ViewCart()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.ElementToBeClickable(ProductPageViewCartButton)).Click();
-            Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(ShopTable));
+            wait.Until(ExpectedConditions.ElementToBeClickable(ProductPageViewCartButton)).Click();
+            wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(ShopTable));
         }
 
         private double GetCartTotalPrice()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             string cartTotalPriceText;
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
-            Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector("tr[class='cart-subtotal'] bdi:nth-child(1)")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector("tr[class='cart-subtotal'] bdi:nth-child(1)")));
             cartTotalPriceText = driver.FindElement(By.CssSelector("tr[class='cart-subtotal'] bdi:nth-child(1)")).Text.Replace(",", ".");
             return double.Parse(cartTotalPriceText.Replace("z³", ""), CultureInfo.InvariantCulture);
         }
 
         private double GetCartTotalPriceWithCoupon()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             string cartTotalPriceText;
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
-            Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector("tr[class='order-total'] bdi:nth-child(1)")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector("tr[class='order-total'] bdi:nth-child(1)")));
             cartTotalPriceText = driver.FindElement(By.CssSelector("tr[class='order-total'] bdi:nth-child(1)")).Text.Replace(",", ".");
             return double.Parse(cartTotalPriceText.Replace("z³", ""), CultureInfo.InvariantCulture);
         }
 
         private void AddCoupon()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("#coupon_code"))).SendKeys("rabatwsti");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("button[value='Wykorzystaj kupon']"))).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("#coupon_code"))).SendKeys("rabatwsti");
+            wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("button[value='Wykorzystaj kupon']"))).Click();
 
             string couponMessage = WaitForMessage();
 
             string expectedCouponMessage = "Kupon zosta³ pomyœlnie u¿yty.";
             Assert.AreEqual(expectedCouponMessage, couponMessage, "Kupon nie zosta³ dodany do koszyka");
 
-            log.Info("Dodano kupon rabatowy");
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            Console.WriteLine("Dodano kupon rabatowy");
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
 
             IWebElement freeShippingAvailablility = driver.FindElement(By.CssSelector("label[for='shipping_method_0_free_shipping1']"));
             Assert.IsNotNull(freeShippingAvailablility, "Darmowa dostawa jest nie dostêpna");
@@ -296,35 +294,35 @@ namespace SeleniumTests
 
         public void RemoveProductFromCart()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             driver.FindElement(RemoveProductButton).Click();
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
         }
 
         private void FillOutCheckoutForm(string email, string phone)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.ElementToBeClickable(firstNameField)).SendKeys("Helena");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(lastNameField)).SendKeys("Mazur");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(countryCodeArrow)).Click();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("li[id*='-PL']"))).Click();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).Click();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).Clear();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).SendKeys("Diamentowa 145");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).Click();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).Clear();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).SendKeys("71-232");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(cityField)).SendKeys("Szczecin");
-            Wait.Until(ExpectedConditions.ElementToBeClickable(phoneField)).SendKeys(phone);
-            Wait.Until(ExpectedConditions.ElementToBeClickable(emailField)).SendKeys(email);
+            wait.Until(ExpectedConditions.ElementToBeClickable(firstNameField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(firstNameField)).SendKeys("Helena");
+            wait.Until(ExpectedConditions.ElementToBeClickable(lastNameField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(lastNameField)).SendKeys("Mazur");
+            wait.Until(ExpectedConditions.ElementToBeClickable(countryCodeArrow)).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector("li[id*='-PL']"))).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(addressField)).SendKeys("Diamentowa 145");
+            wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(postalCodeField)).SendKeys("71-232");
+            wait.Until(ExpectedConditions.ElementToBeClickable(cityField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(cityField)).SendKeys("Szczecin");
+            wait.Until(ExpectedConditions.ElementToBeClickable(phoneField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(phoneField)).SendKeys(phone);
+            wait.Until(ExpectedConditions.ElementToBeClickable(emailField)).Clear();
+            wait.Until(ExpectedConditions.ElementToBeClickable(emailField)).SendKeys(email);
         }
 
         private void FillOutCardData(string cardNumber, string expirationDate, string cvc)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
 
             //zamiast zwyk³ego findElement dla wiêkszej stabilnoœci testów w FireFox
             IWebElement element = driver.FindElement(shippingMethod);
@@ -333,25 +331,25 @@ namespace SeleniumTests
 
             //driver.FindElement(shippingMethod).click();
 
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
 
             driver.FindElement(paymentMethod).Click();
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
 
             SwitchToFrame(cardNumberFrame);
-            IWebElement cardNumberElement = Wait.Until(ExpectedConditions.ElementToBeClickable(cardNumberField));
+            IWebElement cardNumberElement = wait.Until(ExpectedConditions.ElementToBeClickable(cardNumberField));
             cardNumberElement.Clear();
             SlowType(cardNumberElement, cardNumber);
             driver.SwitchTo().DefaultContent();
 
             SwitchToFrame(expirationDateFrame);
-            IWebElement expirationDateElement = Wait.Until(ExpectedConditions.ElementToBeClickable(expirationDateField));
+            IWebElement expirationDateElement = wait.Until(ExpectedConditions.ElementToBeClickable(expirationDateField));
             expirationDateElement.Clear();
             SlowType(expirationDateElement, expirationDate);
             driver.SwitchTo().DefaultContent();
 
             SwitchToFrame(cvcFrame);
-            IWebElement cvcElement = Wait.Until(ExpectedConditions.ElementToBeClickable(cvcField));
+            IWebElement cvcElement = wait.Until(ExpectedConditions.ElementToBeClickable(cvcField));
             cvcElement.Clear();
             SlowType(cvcElement, cvc);
             driver.SwitchTo().DefaultContent();
@@ -359,34 +357,27 @@ namespace SeleniumTests
 
         private void CheckConfirmationBox()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             driver.SwitchTo().DefaultContent();
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
             IWebElement confirmationBox = driver.FindElement(By.CssSelector("input#terms"));
             ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView(true);", confirmationBox);
             confirmationBox.Click();
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
         }
 
         private string OrderAndWaitToComplete()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
             driver.FindElement(orderButton).Click();
 
-            WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(20));
             wait.Until(ExpectedConditions.UrlContains("/checkout/zamowienie-otrzymane/"));
             string orderNumber = driver.FindElement(By.CssSelector(".order>strong")).Text;
-            log.Info("Zamówienie z³o¿one poprawnie - nr zamówienia: " + orderNumber);
+            Console.WriteLine("Zamówienie z³o¿one poprawnie - nr zamówienia: " + orderNumber);
             return orderNumber;
         }
 
         private void LogInDuringCheckout(string userName, string password)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             By expandLoginForm = By.CssSelector(".showlogin");
             By wrappedLoginView = By.CssSelector(".login[style='display: none;']");
 
@@ -394,27 +385,23 @@ namespace SeleniumTests
             By passwordField = By.CssSelector("#password");
             By loginButton = By.CssSelector("[name='login']");
 
-            Wait.Until(ExpectedConditions.ElementToBeClickable(expandLoginForm)).Click();
-            Wait.Until(ExpectedConditions.InvisibilityOfElementLocated(wrappedLoginView));
-            Wait.Until(ExpectedConditions.ElementToBeClickable(usernameField)).SendKeys(userName);
-            Wait.Until(ExpectedConditions.ElementToBeClickable(passwordField)).SendKeys(password);
+            wait.Until(ExpectedConditions.ElementToBeClickable(expandLoginForm)).Click();
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(wrappedLoginView));
+            wait.Until(ExpectedConditions.ElementToBeClickable(usernameField)).SendKeys(userName);
+            wait.Until(ExpectedConditions.ElementToBeClickable(passwordField)).SendKeys(password);
             driver.FindElement(loginButton).Click();
-            log.Info("Zalogowano z nazw¹ u¿ytkownika: " + userName);
+            Console.WriteLine("Zalogowano z nazw¹ u¿ytkownika: " + userName);
         }
 
         private void GoToMyAccountOrders()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             driver.FindElement(By.CssSelector("li[id='menu-item-19']")).Click();
-            Wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector(".woocommerce-MyAccount-navigation-link--orders"))).Click();
+            wait.Until(ExpectedConditions.ElementToBeClickable(By.CssSelector(".woocommerce-MyAccount-navigation-link--orders"))).Click();
         }
 
         private void CheckOrderDetailsSection()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
-            Wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.CssSelector("section.woocommerce-order-details")));
+            wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.CssSelector("section.woocommerce-order-details")));
             IWebElement orderDetailsSection = driver.FindElement(By.CssSelector("section.woocommerce-order-details"));
 
             IList<IWebElement> orderDetailsLabels = orderDetailsSection.FindElements(By.CssSelector("th"));
@@ -425,43 +412,45 @@ namespace SeleniumTests
                 string labelText = label.Text.Trim();
                 int index = orderDetailsLabels.IndexOf(label);
                 string valueText = orderDetailsValues[index].Text.Trim();
-                log.Info(labelText + " " + valueText);
+                Console.WriteLine(labelText + " " + valueText);
                 Assert.IsNotNull(valueText, "Wartoœæ pola: \"" + labelText + "\" jest pusta");
             }
 
             IWebElement billingAddressSection = driver.FindElement(By.CssSelector("div.woocommerce-column--billing-address"));
             IWebElement billingAddressElement = billingAddressSection.FindElement(By.CssSelector("address"));
             Assert.IsNotNull(billingAddressElement, "Adres rozliczeniowy jest pusty");
-            log.Info(billingAddressSection.Text);
+            Console.WriteLine(billingAddressSection.Text);
 
             IWebElement shippingAddressSection = driver.FindElement(By.CssSelector("div.woocommerce-column--shipping-address"));
             IWebElement shippingAddressElement = shippingAddressSection.FindElement(By.CssSelector("address"));
-            log.Info(shippingAddressSection.Text);
+            Console.WriteLine(shippingAddressSection.Text);
             Assert.IsNotNull(shippingAddressElement, "Adres do wysy³ki jest pusty");
         }
 
         private void VerifySearchResults(string searchTerm)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-            Wait.Until(ExpectedConditions.UrlContains(searchTerm));
-            Wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".product")));
+            wait.Until(ExpectedConditions.UrlContains(searchTerm));
+            wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.CssSelector(".product")));
 
             IList<IWebElement> searchResultElements = driver.FindElements(By.CssSelector(".product"));
             int numSearchResults = searchResultElements.Count;
 
             Assert.IsTrue(numSearchResults > 0, "Brak wyników wyszukiwania dla zadanego zapytania");
 
-            log.Info($"Liczba wyników wyszukiwania: {numSearchResults}");
+            Console.WriteLine($"Liczba wyników wyszukiwania: {numSearchResults}");
 
             foreach (IWebElement searchResultElement in searchResultElements)
             {
                 string searchResultText = searchResultElement.Text;
                 Assert.IsTrue(searchResultText.ToLower().Contains(searchTerm), $"Wynik wyszukiwania nie zawiera frazy: \"{searchTerm}\"");
             }
-            log.Info($"Wszystkie wyniki wyszukiwania zawieraj¹ frazê \"{searchTerm}\"");
+            Console.WriteLine($"Wszystkie wyniki wyszukiwania zawieraj¹ frazê \"{searchTerm}\"");
         }
 
-        [Test]
+        [Test, Order(1)]
+        [AllureName("Test rejestracji z prawid³owymi danymi")]
+        [Description("Przypadek testowy dotyczy wymagania pierwszego." +
+            "\nRejestracja i logowanie: Klienci powinni mieæ mo¿liwoœæ zarejestrowania siê i zalogowania na swoje konto, aby mieæ dostêp do swoich danych i historii zakupów.")]
         public void RegisterWithEmailAndPassword()
         {
             string email = username + randomNumber + "@gmail.com";
@@ -471,7 +460,7 @@ namespace SeleniumTests
             string expectedName = userFullName + randomNumber;
             string errorMessage = string.Format("Strona nie zawiera spodziewanej nazwy u¿ytkownika: \"{0}\", znaleziono: \"{1}\"", expectedName, myAccountContent);
             Assert.IsTrue(myAccountContent.Contains(expectedName), errorMessage);
-            log.Info(string.Format("Oczekiwana nazwa u¿ytkownika: \"{0}\", strona zawiera nazwê u¿ytkownika: \"{1}\"", expectedName, myAccountContent));
+            Console.WriteLine(string.Format("Oczekiwana nazwa u¿ytkownika: \"{0}\", strona zawiera nazwê u¿ytkownika: \"{1}\"", expectedName, myAccountContent));
 
             string ordersSelector = ".woocommerce-MyAccount-navigation-link--orders";
             string editAddressSelector = ".woocommerce-MyAccount-navigation-link--edit-address";
@@ -484,9 +473,13 @@ namespace SeleniumTests
             GoToMyAccountSubpage(paymentMethodsSelector, "metod");
 
             DeleteAccount();
+            driver.Navigate().GoToUrl(storeURL);
         }
 
-        [Test]
+        [Test, Order(2)]
+        [AllureName("Test wyszukiwania produktów i sortowania wyników")]
+        [Description("Przypadek testowy dotyczy wymagania drugiego." +
+            "\nKatalog produktów: Sklep powinien posiadaæ wygodny i przejrzysty katalog produktów, który umo¿liwia ³atwe wyszukiwanie i sortowanie produktów.")]
         public void SearchInStoreAndSortResults()
         {
             string productName = "komputer";
@@ -496,16 +489,20 @@ namespace SeleniumTests
             SortByPriceLowToHigh();
             List<double> productPrices = GetProductPrices();
 
-            log.Info($"Na stronie wyników s¹ widoczne ({productPrices.Count}) ceny produktów");
-            log.Info($"Ceny produktów: {string.Join(", ", productPrices)}");
+            Console.WriteLine($"Na stronie wyników s¹ widoczne ({productPrices.Count}) ceny produktów");
+            Console.WriteLine($"Ceny produktów: {string.Join(", ", productPrices)}");
 
             List<double> sortedPrices = new List<double>(productPrices);
             sortedPrices.Sort();
             Assert.AreEqual(sortedPrices, productPrices, "Produkty nie s¹ posortowane od najni¿szej ceny");
-            log.Info($"Posortowane ceny produktów: {string.Join(", ", sortedPrices)}");
+            Console.WriteLine($"Posortowane ceny produktów: {string.Join(", ", sortedPrices)}");
         }
 
-        [Test]
+        [Test, Order(3)]
+        [AllureName("Test szybkiego dodawania produktów do koszyka")]
+        [Description("Przypadek testowy dotyczy wymagania trzeciego i czwartego." +
+            "\nSzybkie dodawanie do koszyka: Klienci powinni mieæ mo¿liwoœæ szybkiego dodawania produktów do koszyka za pomoc¹ jednego klikniêcia." +
+            "\nKoszyk: Klienci powinni mieæ mo¿liwoœæ przegl¹dania i modyfikowania produktów w swoim koszyku, dodania kodu rabatowego a tak¿e przejœcia do procesu zamówienia.")]
         public void AddToShoppingCart()
         {
             string[] productPages = { "/drukarka/", "/glosnik/", "/komputer/",
@@ -518,7 +515,7 @@ namespace SeleniumTests
             {
                 AddProductToCart("http://zelektronika.store/product" + productPage);
                 totalPrice += AddProductPrice();
-                log.Info($"Aktualna wartoœæ koszyka: {totalPrice}");
+                Console.WriteLine($"Aktualna wartoœæ koszyka: {totalPrice}");
             }
 
             ViewCart();
@@ -531,7 +528,7 @@ namespace SeleniumTests
             AddCoupon();
 
             double cartTotalPriceAfterCoupon = GetCartTotalPriceWithCoupon();
-            log.Info($"Cena po rabacie: {cartTotalPriceAfterCoupon}");
+            Console.WriteLine($"Cena po rabacie: {cartTotalPriceAfterCoupon}");
             Console.WriteLine($"Cena po rabacie: {cartTotalPriceAfterCoupon}");
 
             double expectedDiscountedPrice = cartTotalPrice * 0.8;
@@ -542,7 +539,11 @@ namespace SeleniumTests
             Assert.AreEqual(productPages.Length - 1, numberOfItems, $"Iloœæ produktów w koszyku jest nieprawid³owa. Wymagane: {productPages.Length}, w ramach testu obliczono: {numberOfItems}");
         }
 
-        [Test]
+        [Test, Order(4)]
+        [AllureName("Test wype³niania formularza i sk³adania zamówienia")]
+        [Description("Przypadek testowy dotyczy wymagania pi¹tego oraz siódmego." +
+            "\nWype³nianie formularza zamówienia: Klienci powinni mieæ mo¿liwoœæ wype³nienia formularza zamówienia, w którym bêd¹ wprowadzaæ swoje dane i informacje dotycz¹ce dostawy." +
+            "\nPotwierdzenie zamówienia: Po zakoñczeniu procesu zamówienia, klienci powinni otrzymaæ potwierdzenie zamówienia.")]
         public void CheckoutTest()
         {
             AddProductToCart("http://zelektronika.store/product/komputer");
@@ -582,11 +583,14 @@ namespace SeleniumTests
                 Assert.AreEqual(expectedNumberOfProducts, actualNumberOfProducts, $"Produkty w podsumowaniu nieprawid³owe. Oczekiwane: {expectedNumberOfProducts} w podsumowaniu: {actualNumberOfProducts}");
                 Assert.AreEqual(expectedProductQuantity, actualProductQuantity, $"Liczba produktów w podsumowaniu nieprawid³owa. Oczekiwana: {expectedProductQuantity} w podsumowaniu: {actualProductQuantity}");
                 Assert.AreEqual(expectedProductName, actualProductName, $"Nazwa produktu w podsumowaniu nieprawid³owa. Oczekiwana: {expectedProductName} w podsumowaniu: {actualProductName}");
-                log.Info("Dane w podsumowaniu zamówienia s¹ poprawne");
+                Console.WriteLine("Dane w podsumowaniu zamówienia s¹ poprawne");
             });
         }
 
-        [Test]
+        [Test, Order(5)]
+        [AllureName("Test modu³u p³atnoœci, weryfikacji i autoryzacji p³atnoœci testowymi kartami")]
+        [Description("Przypadek testowy dotyczy wymagania szóstego." +
+            "\nWeryfikacja p³atnoœci: Sklep powinien umo¿liwiaæ weryfikacjê i autoryzacjê p³atnoœci przed dokonaniem transakcji.")]
         public void PaymentTest()
         {
             AddProductToCart("http://zelektronika.store/product/komputer");
@@ -600,19 +604,19 @@ namespace SeleniumTests
             driver.FindElement(orderButton).Click();
 
             string actualErrorMessage = WaitForErrorMessage();
-            log.Info("Wyœwietlony b³¹d: " + actualErrorMessage);
+            Console.WriteLine("Wyœwietlony b³¹d: " + actualErrorMessage);
             Assert.IsTrue(actualErrorMessage.Contains("Data wa¿noœci karty ju¿ minê³a."), "B³¹d daty wa¿noœci karty nie zosta³ wyœwietlony");
 
             FillOutCardData("4000000000000002", "0227", "");
             driver.FindElement(orderButton).Click();
             actualErrorMessage = WaitForErrorMessage();
-            log.Info("Wyœwietlony b³¹d: " + actualErrorMessage);
+            Console.WriteLine("Wyœwietlony b³¹d: " + actualErrorMessage);
             Assert.IsTrue(actualErrorMessage.Contains("Kod bezpieczeñstwa karty jest niekompletny."), "B³¹d kodu CVC karty nie zosta³ wyœwietlony");
 
             FillOutCardData("4000000000000002", "0227", "456");
             driver.FindElement(orderButton).Click();
             actualErrorMessage = WaitForErrorMessage();
-            log.Info("Wyœwietlony b³¹d: " + actualErrorMessage);
+            Console.WriteLine("Wyœwietlony b³¹d: " + actualErrorMessage);
 
             Assert.IsTrue(actualErrorMessage.Contains("Karta zosta³a odrzucona."), "B³¹d o odrzuceniu p³atnoœci nie zosta³ wyœwietlony");
 
@@ -623,11 +627,11 @@ namespace SeleniumTests
             Assert.AreEqual(1, numberOfOrderReceivedMessages, "Nieprawid³owy komunikat o otrzymaniu zamówienia, czy p³atnoœæ zosta³a poprawnie przetworzona?");
         }
 
-        [Test]
+        [Test, Order(6)]
+        [Description("Test historii i szczegó³ów zamówieñ")]
+        [AllureName("Historia zamówieñ: Klienci powinni mieæ dostêp do swojej historii zamówieñ i szczegó³ów dotycz¹cych ka¿dego z nich.")]
         public void OrderHistoryTest()
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             AddProductToCart("http://zelektronika.store/product/komputer");
             ViewCart();
             driver.FindElement(checkoutButton).Click();
@@ -644,10 +648,10 @@ namespace SeleniumTests
 
             Assert.AreEqual(1, numberOfOrdersWithGivenNumber, "Expected one order with a given number (" + orderNumber + ") but found " + numberOfOrdersWithGivenNumber + " orders.");
 
-            Wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.CssSelector("table.shop_table")));
+            wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.CssSelector("table.shop_table")));
 
             IList<IWebElement> orders = driver.FindElements(By.CssSelector("table.shop_table tr.order"));
-            log.Info("W tabeli wyœwietlono (" + orders.Count + ") ostatnich zamówieñ");
+            Console.WriteLine("W tabeli wyœwietlono (" + orders.Count + ") ostatnich zamówieñ");
 
             Assert.Multiple(() =>
             {
@@ -662,17 +666,17 @@ namespace SeleniumTests
                     Assert.IsNotNull(orderTotal, "Pole kwota jest puste dla zamówienia: " + orderNumber);
                 }
 
-                log.Info("Wszystkie zamówienia posiadaj¹ niepuste pole numer");
-                log.Info("Wszystkie zamówienia posiadaj¹ niepuste pole data");
-                log.Info("Wszystkie zamówienia posiadaj¹ niepuste pole z kwot¹ zamówienia");
+                Console.WriteLine("Wszystkie zamówienia posiadaj¹ niepuste pole numer");
+                Console.WriteLine("Wszystkie zamówienia posiadaj¹ niepuste pole data");
+                Console.WriteLine("Wszystkie zamówienia posiadaj¹ niepuste pole z kwot¹ zamówienia");
             });
 
             IWebElement viewButton = driver.FindElement(By.CssSelector("td.woocommerce-orders-table__cell.woocommerce-orders-table__cell-order-actions a.woocommerce-button.wp-element-button.button.view"));
             string href = viewButton.GetAttribute("href");
             viewButton.Click();
 
-            log.Info("Podsumowanie zamówienia nr " + orderNumber);
-            log.Info("Link do podsumowania ostatniego zamówienia: " + href);
+            Console.WriteLine("Podsumowanie zamówienia nr " + orderNumber);
+            Console.WriteLine("Link do podsumowania ostatniego zamówienia: " + href);
 
             string[] parts = href.Split('/');
             string actualOrderNumber = parts[parts.Length - 2];
@@ -706,10 +710,9 @@ namespace SeleniumTests
 
         private void waitForElementsDisappear(By by)
         {
-            WebDriverWait Wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
             try
             {
-                Wait.Until(d => driver.FindElements(by).Count == 0);
+                wait.Until(d => driver.FindElements(by).Count == 0);
             }
             catch (WebDriverTimeoutException)
             {
@@ -718,5 +721,4 @@ namespace SeleniumTests
             }
         }
     }
-
 }
