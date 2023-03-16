@@ -1,5 +1,4 @@
 using Allure.Commons;
-using NLog;
 using NUnit.Allure.Attributes;
 using NUnit.Allure.Core;
 using NUnit.Framework.Interfaces;
@@ -19,11 +18,8 @@ namespace SeleniumTests
     class StoreTests
 
     {
-        private static readonly ILogger log = LogManager.GetCurrentClassLogger();
-
         IWebDriver driver;
         private WebDriverWait wait;
-
 
         IJavaScriptExecutor js;
 
@@ -629,7 +625,8 @@ namespace SeleniumTests
 
         [Test, Order(6)]
         [Description("Test historii i szczegó³ów zamówieñ")]
-        [AllureName("Historia zamówieñ: Klienci powinni mieæ dostêp do swojej historii zamówieñ i szczegó³ów dotycz¹cych ka¿dego z nich.")]
+        [AllureName("Przypadek testowy dotyczy wymagania ósmego." +
+            "\nHistoria zamówieñ: Klienci powinni mieæ dostêp do swojej historii zamówieñ i szczegó³ów dotycz¹cych ka¿dego z nich.")]
         public void OrderHistoryTest()
         {
             AddProductToCart("http://zelektronika.store/product/komputer");

@@ -16,7 +16,6 @@ namespace SeleniumTests
                 return wait.Until(c => c.FindElement(by));
             }
             return context.FindElement(by);
-
         }
 
         public static ReadOnlyCollection<IWebElement> FindElements(this ISearchContext context, By by, int timeoutInSeconds)
