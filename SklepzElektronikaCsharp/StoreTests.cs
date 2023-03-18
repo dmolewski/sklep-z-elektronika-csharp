@@ -82,7 +82,11 @@ namespace SeleniumTests
         [OneTimeSetUp]
         public void Setup()
         {
-            driver = new ChromeDriver();
+            ChromeOptions options = new ChromeOptions();
+            //options.AddArgument("--headless");
+            options.AddArgument("--disable-extensions");
+            
+            driver = new ChromeDriver(options);
             driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10);
             driver.Manage().Window.Maximize();
             wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
