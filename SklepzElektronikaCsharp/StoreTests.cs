@@ -102,6 +102,12 @@ namespace SeleniumTests
         [TearDown]
         public void ClearCache()
         {
+            if (TestContext.CurrentContext.Result.Outcome != ResultState.Success)
+            {
+                string screenshotPath = TakeScreenshot();
+                Console.WriteLine("Screenshot: " + screenshotPath);
+                AllureLifecycle.Instance.AddAttachment(screenshotPath);
+            }
             if (driver != null)
             {
                 driver.Manage().Cookies.DeleteAllCookies();
@@ -111,12 +117,6 @@ namespace SeleniumTests
         [OneTimeTearDown]
         public void QuitDriver()
         {
-            if (TestContext.CurrentContext.Result.Outcome != ResultState.Success)
-            {
-                string screenshotPath = TakeScreenshot();
-                Console.WriteLine("Screenshot: " + screenshotPath);
-                AllureLifecycle.Instance.AddAttachment(screenshotPath);
-            }
             driver.Quit();
         }
         private static string GetCurrentDate()
