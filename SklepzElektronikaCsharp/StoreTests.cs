@@ -335,10 +335,10 @@ namespace SeleniumTests
 
             //driver.FindElement(shippingMethod).click();
 
-            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
 
             driver.FindElement(paymentMethod).Click();
-            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(loadingIcon));
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
 
             SwitchToFrame(cardNumberFrame);
             IWebElement cardNumberElement = wait.Until(ExpectedConditions.ElementToBeClickable(cardNumberField));
@@ -642,6 +642,7 @@ namespace SeleniumTests
             driver.FindElement(checkoutButton).Click();
 
             LogInDuringCheckout("dmolewskisklep", "testowekontoztestowymhaslem");
+            wait.Until(ExpectedConditions.InvisibilityOfElementLocated(By.CssSelector(".blockOverlay")));
             FillOutCardData("4242424242424242", "0226", "456");
 
             CheckConfirmationBox();
