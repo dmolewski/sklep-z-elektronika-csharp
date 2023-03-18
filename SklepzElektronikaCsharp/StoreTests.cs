@@ -5,6 +5,8 @@ using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.DevTools.V108.Accessibility;
+using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
@@ -82,11 +84,13 @@ namespace SeleniumTests
         [OneTimeSetUp]
         public void Setup()
         {
-            ChromeOptions options = new ChromeOptions();
+            FirefoxOptions options = new FirefoxOptions();
             //options.AddArgument("--headless");
-            options.AddArgument("--disable-extensions");
-            
-            driver = new ChromeDriver(options);
+            FirefoxProfile profile = new FirefoxProfile();
+            profile.SetPreference("extensions.webextensions.enabled", false);
+            options.Profile = profile;
+
+            driver = new FirefoxDriver(options);
             driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10);
             driver.Manage().Window.Maximize();
             wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
