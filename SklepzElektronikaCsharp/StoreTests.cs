@@ -11,6 +11,7 @@ using SeleniumExtras.WaitHelpers;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using OpenQA.Selenium.Edge;
 
 namespace SeleniumTests
 {
@@ -82,14 +83,15 @@ namespace SeleniumTests
         [OneTimeSetUp]
         public void Setup()
         {
-            ChromeOptions options = new ChromeOptions();
+            //ChromeOptions options = new ChromeOptions();
+            EdgeOptions options = new EdgeOptions();
+            options.AddArgument("--disable-extensions");
+         
+            driver = new EdgeDriver(options);
             //options.AddArgument("--headless");
             //FirefoxProfile profile = new FirefoxProfile();
             //profile.SetPreference("extensions.webextensions.enabled", false);
             //options.Profile = profile;
-            options.AddArgument("--disable-extensions");
-
-            driver = new ChromeDriver(options);
             driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10);
             driver.Manage().Window.Maximize();
             wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
